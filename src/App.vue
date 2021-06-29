@@ -11,7 +11,7 @@
           </template>
         </v-snackbar>
         <v-row justify="center">
-          <v-col lg="5">
+          <v-col md="7" xl="5">
             <v-form ref="form" @submit.prevent="onFormSubmit">
               <v-text-field
                 outlined
@@ -59,6 +59,20 @@
                           item.completed ? 'Undo Todo' : 'Complete Todo'
                         }}</span>
                       </v-tooltip>
+                      <v-tooltip bottom>
+                        <template #activator="{ on, attr }">
+                          <v-icon
+                            color="red"
+                            v-on="on"
+                            v-bind="attr"
+                            class="ml-2"
+                            @click="deleteTodo(item.id)"
+                          >
+                            delete
+                          </v-icon>
+                        </template>
+                        <span>Delete</span>
+                      </v-tooltip>
                     </v-list-item-icon>
                   </v-list-item>
                   <v-divider
@@ -82,6 +96,8 @@
 import Vue from 'vue'
 import { v4 as uuid } from 'uuid'
 
+const baseURL = 'http://localhost:3000/todos/'
+
 interface todoEntry {
   title: string
   id: string
@@ -97,19 +113,47 @@ export default Vue.extend({
       shown: false,
       message: ''
     },
-    showDone: false
+    showDone: !!localStorage.getItem('showDone')
   }),
+  watch: {
+    showDone: v => localStorage.setItem('showDone', v ? 'show' : '')
+  },
+  created() {
+    this.fetchTodos()
+  },
   computed: {
     undoneTodos() {
       return this.todos.filter(v => !v.completed)
     }
   },
   methods: {
-    addTodo(title: string) {
-      this.todos.push({
+    async addTodo(title: string) {
+      const todo = {
         title,
         id: uuid(),
         completed: false
+      }
+
+      fetch(baseURL, {
+        method: 'POST',
+        body: JSON.stringify(todo),
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      this.todos.push(todo)
+    },
+    async fetchTodos() {
+      this.todos = (await (await fetch(baseURL)).json()) as todoEntry[]
+    },
+    deleteTodo(id: string) {
+      this.todos = this.todos.filter(todo => todo.id !== id)
+      fetch(baseURL + id, { method: 'DELETE' })
+    },
+    updateTodo(id: string, completed: boolean) {
+      fetch(baseURL + id, {
+        method: 'PATCH',
+        body: JSON.stringify({ completed }),
+        headers: { 'Content-Type': 'application/json' }
       })
     },
     onFormSubmit() {
@@ -117,6 +161,7 @@ export default Vue.extend({
       this.value = ''
     },
     handleComplete(id: string, complete: boolean) {
+      this.updateTodo(id, complete)
       const toggleComplete = (id: string, complete: boolean) => {
         this.todos = this.todos.map(v => {
           if (v.id === id) v.completed = complete
