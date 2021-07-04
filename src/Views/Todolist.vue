@@ -74,69 +74,69 @@
               >
               </v-text-field>
             </v-form>
-
             <v-card
               v-if="
                 showDone
                   ? !!Object.keys(todos).length
                   : !!Object.keys(undoneTodos).length
               "
-              color="primary"
             >
               <v-list>
-                <div
-                  v-for="(item, key, index) in showDone ? todos : undoneTodos"
-                  :key="key"
-                >
-                  <v-list-item>
-                    <v-list-item-content>
-                      <v-list-item-title
-                        :class="{
-                          'text-decoration-line-through': item.completed
-                        }"
-                        >{{ item.title }}</v-list-item-title
-                      >
-                    </v-list-item-content>
-                    <v-list-item-icon>
-                      <v-tooltip bottom>
-                        <template #activator="{on, attrs}">
-                          <v-icon
-                            color="primary"
-                            v-on="on"
-                            v-bind="attrs"
-                            @click="handleComplete(key, !item.completed)"
-                            >{{
-                              item.completed ? 'remove_done' : 'done'
-                            }}</v-icon
-                          >
-                        </template>
-                        <span>{{
-                          item.completed ? 'Undo Todo' : 'Complete Todo'
-                        }}</span>
-                      </v-tooltip>
-                      <v-tooltip bottom>
-                        <template #activator="{ on, attr }">
-                          <v-icon
-                            color="red"
-                            v-on="on"
-                            v-bind="attr"
-                            class="ml-2"
-                            @click="deleteTodo(key)"
-                          >
-                            delete
-                          </v-icon>
-                        </template>
-                        <span>Delete</span>
-                      </v-tooltip>
-                    </v-list-item-icon>
-                  </v-list-item>
-                  <v-divider
-                    v-if="
-                      index + 1 <
-                        Object.keys(showDone ? todos : undoneTodos).length
-                    "
-                  ></v-divider>
-                </div>
+                <v-slide-y-transition leave-absolute group tag="div">
+                  <div
+                    v-for="(item, key, index) in showDone ? todos : undoneTodos"
+                    :key="key"
+                  >
+                    <v-list-item>
+                      <v-list-item-content>
+                        <v-list-item-title
+                          :class="{
+                            'text-decoration-line-through': item.completed
+                          }"
+                          >{{ item.title }}</v-list-item-title
+                        >
+                      </v-list-item-content>
+                      <v-list-item-icon>
+                        <v-tooltip bottom>
+                          <template #activator="{on, attrs}">
+                            <v-icon
+                              color="primary"
+                              v-on="on"
+                              v-bind="attrs"
+                              @click="handleComplete(key, !item.completed)"
+                              >{{
+                                item.completed ? 'remove_done' : 'done'
+                              }}</v-icon
+                            >
+                          </template>
+                          <span>{{
+                            item.completed ? 'Undo Todo' : 'Complete Todo'
+                          }}</span>
+                        </v-tooltip>
+                        <v-tooltip bottom>
+                          <template #activator="{ on, attr }">
+                            <v-icon
+                              color="red"
+                              v-on="on"
+                              v-bind="attr"
+                              class="ml-2"
+                              @click="handleDelete(key)"
+                            >
+                              delete
+                            </v-icon>
+                          </template>
+                          <span>Delete</span>
+                        </v-tooltip>
+                      </v-list-item-icon>
+                    </v-list-item>
+                    <v-divider
+                      v-if="
+                        index + 1 <
+                          Object.keys(showDone ? todos : undoneTodos).length
+                      "
+                    ></v-divider>
+                  </div>
+                </v-slide-y-transition>
               </v-list>
             </v-card>
             <p v-else class="text-subtitle-1 secondary--text text-center">
@@ -157,6 +157,8 @@
     </template>
   </v-main>
 </template>
+
+<style scoped></style>
 
 <script lang="ts">
 import Vue from 'vue'
@@ -198,7 +200,6 @@ export default Vue.extend({
     user(v) {
       this.dialog && v && (this.dialog = false && this.$router.push('/'))
     },
-    todos: v => console.log(v),
     showDone: v => localStorage.setItem('showDone', v ? 'show' : '')
   },
   created() {
@@ -298,6 +299,21 @@ export default Vue.extend({
       this.snackbar.message = `You have ${
         complete ? 'completed' : 'undone'
       } todo`
+    },
+    handleDelete(id: string) {
+      const todoToDelete = this.todos[id]
+
+      this.deleteTodo(id)
+
+      this.snackbar.shown = true
+      this.snackbar.action = () => {
+        firebase
+          .firestore()
+          .doc(`todos/${id}`)
+          .set(todoToDelete)
+        this.snackbar.shown = false
+      }
+      this.snackbar.message = `You have deleted a todo`
     }
   }
 })
