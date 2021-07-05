@@ -93,20 +93,31 @@
                           :class="{
                             'text-decoration-line-through': item.completed
                           }"
-                          >{{ item.title }}</v-list-item-title
                         >
+                          <input
+                            id="editInput"
+                            v-if="key === editTarget"
+                            v-model="editValue"
+                            @keydown.enter="handleEdit(key, editValue)"
+                            type="text"
+                            ref="input"
+                            @blur="handleEdit(key, editValue)"
+                          />
+                          <span v-else>{{ item.title }}</span>
+                        </v-list-item-title>
                       </v-list-item-content>
                       <v-list-item-icon>
                         <v-tooltip bottom>
                           <template #activator="{on, attrs}">
-                            <v-icon
+                            <v-btn
                               color="primary"
                               v-on="on"
+                              icon
                               v-bind="attrs"
                               @click="handleComplete(key, !item.completed)"
-                              >{{
+                              ><v-icon>{{
                                 item.completed ? 'remove_done' : 'done'
-                              }}</v-icon
+                              }}</v-icon></v-btn
                             >
                           </template>
                           <span>{{
@@ -115,15 +126,29 @@
                         </v-tooltip>
                         <v-tooltip bottom>
                           <template #activator="{ on, attr }">
-                            <v-icon
-                              color="red"
+                            <v-btn
+                              icon
+                              color="secondary"
                               v-on="on"
                               v-bind="attr"
-                              class="ml-2"
+                              @click="onEditClick(key)"
+                            >
+                              <v-icon>edit</v-icon>
+                            </v-btn>
+                          </template>
+                          <span>Edit</span>
+                        </v-tooltip>
+                        <v-tooltip bottom>
+                          <template #activator="{ on, attr }">
+                            <v-btn
+                              color="red"
+                              v-on="on"
+                              icon
+                              v-bind="attr"
                               @click="handleDelete(key)"
                             >
-                              delete
-                            </v-icon>
+                              <v-icon>delete</v-icon>
+                            </v-btn>
                           </template>
                           <span>Delete</span>
                         </v-tooltip>
@@ -158,7 +183,11 @@
   </v-main>
 </template>
 
-<style scoped></style>
+<style scoped>
+#editInput {
+  outline: none;
+}
+</style>
 
 <script lang="ts">
 import Vue from 'vue'
@@ -179,6 +208,7 @@ export default Vue.extend({
     todos: {} as Todos,
     dialog: false,
     value: '',
+    editValue: '',
     snackbar: {
       action: (): void => {},
       shown: false,
@@ -187,6 +217,7 @@ export default Vue.extend({
     showDone: !!localStorage.getItem('showDone'),
     user: null as false | null | firebase.User,
     unsubscribe: [] as any[],
+    editTarget: '' as null | string,
     rules: [
       (v: string) =>
         (!!v && v.length >= 2) ||
@@ -267,11 +298,11 @@ export default Vue.extend({
         .doc(`todos/${id}`)
         .delete()
     },
-    updateTodo(id: string, completed: boolean) {
+    updateTodo(id: string, payload: { title?: string; completed?: boolean }) {
       firebase
         .firestore()
         .doc(`todos/${id}`)
-        .update({ completed })
+        .update(payload)
     },
     formValidate(reset?: boolean) {
       const ref = <any>this.$refs.form
@@ -286,18 +317,18 @@ export default Vue.extend({
         this.formValidate(true)
       }
     },
-    handleComplete(id: string, complete: boolean) {
-      const toggleComplete = (complete: boolean) =>
-        this.updateTodo(id, complete)
+    handleComplete(id: string, completed: boolean) {
+      const toggleComplete = (completed: boolean) =>
+        this.updateTodo(id, { completed })
 
-      toggleComplete(complete)
+      toggleComplete(completed)
       this.snackbar.shown = true
       this.snackbar.action = () => {
-        toggleComplete(!complete)
+        toggleComplete(!completed)
         this.snackbar.shown = false
       }
       this.snackbar.message = `You have ${
-        complete ? 'completed' : 'undone'
+        completed ? 'completed' : 'undone'
       } todo`
     },
     handleDelete(id: string) {
@@ -314,6 +345,16 @@ export default Vue.extend({
         this.snackbar.shown = false
       }
       this.snackbar.message = `You have deleted a todo`
+    },
+    async onEditClick(id: string) {
+      this.editTarget = id
+      this.editValue = this.todos[id].title
+      await this.$nextTick()
+      ;(<any>this.$refs.input)[0].focus()
+    },
+    handleEdit(id: string, title: string) {
+      this.editTarget = null
+      this.updateTodo(id, { title })
     }
   }
 })
